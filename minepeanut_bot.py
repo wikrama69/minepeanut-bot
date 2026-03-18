@@ -177,16 +177,26 @@ def api(method, path, timeout=30, **kwargs):
 
 def register_agent(agent_id, pub_b64):
     log("INFO", f"Registering: {Fore.CYAN}{agent_id}")
-    r = api("POST", "/register", timeout=REGISTER_TIMEOUT, json={
-        "agent_id": agent_id, "public_key": pub_b64,
-        "compute_capability": "GPU", "max_vcus": 1000,
-    })
-    if r:
-        log("SUCCESS", f"Registered! epoch_start={r.get('epoch_start','?')}")
-        return True
-    log("ERROR", "Registration failed")
+    for attempt in range(1, 6):
+        try:
+            r = requests.post(f"{BASE_URL}/register", timeout=REGISTER_TIMEOUT, json={
+                "agent_id": agent_id, "public_key": pub_b64,
+                "compute_capability": "GPU", "max_vcus": 1000,
+            })
+            if r.status_code == 200:
+                log("SUCCESS", f"Registered! epoch={r.json().get('epoch_start','?')}")
+                return True
+            if r.status_code in (409, 200):
+                log("INFO", "Agent already registered, lanjut mining...")
+                return True
+            log("WARN", f"Register HTTP {r.status_code} (attempt {attempt}/5): {r.text[:80]}")
+        except Exception as e:
+            log("WARN", f"Register timeout attempt {attempt}/5: {e}")
+        wait = 20 * attempt
+        log("INFO", f"Retry register in {wait}s...")
+        time.sleep(wait)
+    log("WARN", "Register gagal 5x — skip, langsung coba mining...")
     return False
-
 
 def update_wallet(agent_id, pub_b64, wallet):
     log("INFO", f"Setting wallet: {Fore.CYAN}{wallet}")
