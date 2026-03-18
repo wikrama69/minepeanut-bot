@@ -1,0 +1,7 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "python minepeanut_bot.py --agent-id $AGENT_ID --wallet $ETH_WALLET"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
