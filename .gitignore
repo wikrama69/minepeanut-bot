@@ -1,0 +1,11 @@
+# Keypair sensitif - JANGAN di-push!
+peanut_keys.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Stats file
+peanut_stats.json
