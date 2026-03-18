@@ -37,9 +37,10 @@ from cryptography.hazmat.primitives.serialization import (
 # ─────────────────────────────────────────────
 BASE_URL      = "https://wrcenmardnbprfpqhrqe.supabase.co/functions/v1/peanut-mining"
 KEYS_FILE     = "peanut_keys.json"
-RETRY_DELAY   = 5
-TASK_INTERVAL = 2
-MAX_RETRIES   = 3
+RETRY_DELAY    = 10   # detik base delay
+TASK_INTERVAL  = 3    # detik antar task
+MAX_RETRIES    = 10   # retry lebih banyak
+REGISTER_TIMEOUT = 60 # timeout khusus register (server sering overload)
 
 init(autoreset=True)
 
@@ -157,24 +158,26 @@ def solve_matrix(payload_b64: str):
 # ─────────────────────────────────────────────
 #  API
 # ─────────────────────────────────────────────
-def api(method, path, **kwargs):
+def api(method, path, timeout=30, **kwargs):
     url = f"{BASE_URL}{path}"
     for i in range(1, MAX_RETRIES + 1):
         try:
-            r = requests.request(method, url, timeout=15, **kwargs)
+            r = requests.request(method, url, timeout=timeout, **kwargs)
             if r.status_code == 200:
                 return r.json()
             log("WARN", f"HTTP {r.status_code} {path} (try {i}): {r.text[:100]}")
         except Exception as e:
             log("ERROR", f"Request error (try {i}): {e}")
         if i < MAX_RETRIES:
-            time.sleep(RETRY_DELAY)
+            wait = min(RETRY_DELAY * (2 ** (i - 1)), 120)
+            log("INFO", f"Retry in {wait}s...")
+            time.sleep(wait)
     return None
 
 
 def register_agent(agent_id, pub_b64):
     log("INFO", f"Registering: {Fore.CYAN}{agent_id}")
-    r = api("POST", "/register", json={
+    r = api("POST", "/register", timeout=REGISTER_TIMEOUT, json={
         "agent_id": agent_id, "public_key": pub_b64,
         "compute_capability": "GPU", "max_vcus": 1000,
     })
